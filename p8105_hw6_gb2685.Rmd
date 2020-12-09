@@ -1,0 +1,62 @@
+---
+title: "Homework 6"
+author: "Gauri Bhatkhande"
+date: "09/12/2020"
+output: github_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(tidyverse)
+```
+
+## Problem 2
+
+**Importing the dataset**
+```{r}
+birthweight_data = read_csv(file = "./data/birthweight.csv")
+```
+
+**Cleaning the dataset** 
+
+```{r}
+birthweight_data %>%
+  sapply(function(x) sum(is.na(x))) 
+
+birthweight_df = 
+  birthweight_data %>%
+  mutate(
+    babysex = as.factor(babysex) 
+  )
+
+
+
+```
+
+
+**Proposed regression model for the outcome birthweight.** 
+
+Based on hypothesis found in literature, I have selected the following variables as predictors: 
+Mother's weight gain during pregnancy (pounds) (wtgain)
+Gestational age in weeks (gaweeks)
+Smoking status - Average number of cigarettes smoked per day during pregnancy (smoken)
+Baby’s sex (babysex)
+
+This model was decided based on literature evidence that suggested an association between these predictors and the baby's birthweight. 
+
+**Building the proposed model:** 
+
+```{r}
+lin_model = lm(bwt ~ wtgain + gaweeks + smoken + babysex, data = birthweight_df)
+
+lin_model %>%
+  broom::tidy() %>% 
+  select(term, estimate, p.value) %>% 
+  mutate(term = str_replace(term, "babysex2", "baby's sex: female")) %>% 
+  knitr::kable(digits = 3)
+```
+
+
+
+
