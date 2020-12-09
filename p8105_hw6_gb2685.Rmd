@@ -9,6 +9,8 @@ editor_options:
 
 ```{r}
 library(tidyverse)
+library(modelr)
+library(mgcv)
 ```
 
 ## Problem 2
@@ -89,4 +91,52 @@ lin_model3 %>%
   knitr::kable(digits = 3)
 ```
 
+Fit the three models 
+
+```{r}
+
+lin_model = lm(bwt ~ wtgain + gaweeks + smoken + babysex, data = birthweight_df)
+lin_model2 = lm(bwt ~ blength + gaweeks, data = birthweight_df)
+lin_model3 = lm(bwt ~ bhead + blength + babysex + bhead*blength + blength*babysex + bhead*babysex +  bhead*blength*babysex, data = birthweight_df)
+
+```
+
+Cross validation
+
+```{r}
+cv_df = 
+  crossv_mc(birthweight_df, 100) 
+
+
+cv_df =
+  cv_df %>% 
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble))
+```
+
+```{r}
+cv_df = 
+  cv_df %>% 
+  mutate(
+    lin_model  = map(train, ~lin_model),
+    lin_model2  = map(train, ~lin_model2),
+    lin_model3  = map(train, ~lin_model3)
+    )%>% 
+  mutate(
+    rmse_lin_model  = map2_dbl(lin_model, test, ~rmse(model = .x, data = .y)),
+    rmse_lin_model2 = map2_dbl(lin_model2, test, ~rmse(model = .x, data = .y)),
+    rmse_lin_model3 = map2_dbl(lin_model3, test, ~rmse(model = .x, data = .y))
+    )
+
+cv_df %>% 
+  select(starts_with("rmse")) %>% 
+  pivot_longer(
+    everything(),
+    names_to = "model", 
+    values_to = "rmse",
+    names_prefix = "rmse_") %>% 
+  mutate(model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + geom_violin()
+```
 
