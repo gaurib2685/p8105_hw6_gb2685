@@ -57,6 +57,36 @@ lin_model %>%
   knitr::kable(digits = 3)
 ```
 
+```{r}
+birthweight_df %>% 
+  modelr::add_residuals(lin_model) %>% 
+  modelr::add_predictions(lin_model) %>%
+  ggplot(aes(x = pred, y = resid)) + geom_point()
+```
 
+**Buiding the other two models:**
+
+Model 2: 
+
+```{r}
+lin_model2 = lm(bwt ~ blength + gaweeks, data = birthweight_df)
+
+lin_model2 %>%
+  broom::tidy() %>% 
+  select(term, estimate, p.value) %>% 
+  knitr::kable(digits = 3)
+```
+
+Model 3: 
+
+```{r}
+lin_model3 = lm(bwt ~ bhead + blength + babysex, data = birthweight_df)
+
+lin_model3 %>%
+  broom::tidy() %>% 
+  select(term, estimate, p.value) %>% 
+  mutate(term = str_replace(term, "babysex2", "baby's sex: female")) %>% 
+  knitr::kable(digits = 3)
+```
 
 
