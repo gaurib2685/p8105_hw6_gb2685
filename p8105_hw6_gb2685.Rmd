@@ -163,11 +163,18 @@ lin_model %>%
 
 ```
 
+The main effects show significant p values 
+
 ```{r}
 birthweight_df %>% 
   modelr::add_residuals(lin_model) %>% 
   modelr::add_predictions(lin_model) %>%
-  ggplot(aes(x = pred, y = resid)) + geom_point()
+  ggplot(aes(x = pred, y = resid)) + geom_point() +
+  labs(
+    title = "Residuals vs Predictors",
+    x = "Predictor",
+    y = "Residuals"
+  )
 ```
 
 Most of the values were centered around the centre except for a few values that strayed far from zero. 
@@ -301,6 +308,8 @@ bootstrap_results_r_squared%>%
   )
 ```
 
+**Analysing**
+
 ```{r}
 bootstrap_results_log_b1_b2 = 
   boot_straps %>% 
@@ -331,6 +340,7 @@ bootstrap_results_log_b1_b2%>%
   )
 ```
 
+**Identifying the 2.5% and 97.5% quantiles**
 ```{r}
 bootstrap_results_r_squared %>%
   summarize(
@@ -340,7 +350,7 @@ bootstrap_results_r_squared %>%
 
 The distribution appears to be normally distributed.
 
-The confidence interval: (0.894, 0.927)
+The 95% confidence interval: (0.894, 0.927)
 
 ```{r}
 bootstrap_results_log_b1_b2%>%
@@ -350,4 +360,4 @@ bootstrap_results_log_b1_b2%>%
 ```
 
 The distribution appears to be normal. 
-Th confidence interval: (1.97, 2.06)
+The 95% confidence interval: (1.96, 2.06)
