@@ -29,7 +29,8 @@ birthweight_data %>%
 birthweight_df = 
   birthweight_data %>%
   mutate(
-    babysex = as.factor(babysex) 
+    babysex = as.factor(babysex)
+    
   )
 
 ```
@@ -80,6 +81,8 @@ birthweight_df %>%
   modelr::add_predictions(lin_model) %>%
   ggplot(aes(x = pred, y = resid)) + geom_point()
 ```
+
+Most of the values were centered around the centre except for a few values that strayed far from zero. 
 
 **Buiding the other two models:**
 
@@ -155,6 +158,8 @@ cv_df %>%
   ggplot(aes(x = model, y = rmse)) + geom_violin()
 ```
 
+Root mean square errors (RMSE) should be lower for the best fit models. Here, my model is not a good fit as compared to models 2 and 3, as the RMSE is very high. The third model is the best as it has the lowest RMSE. 
+
 
 ## Problem 3
 
@@ -171,4 +176,70 @@ weather_df =
     tmax = tmax / 10) %>%
   select(name, id, everything())
 ```
+
+**Drawing bootstrap samples**
+
+```{r}
+boot_sample = function(df) {
+  sample_frac(df, replace = TRUE)
+}
+
+boot_straps = 
+  data_frame(
+    strap_number = 1:5000,
+    strap_sample = rerun(5000, boot_sample(weather_df))
+  )
+```
+
+```{r}
+bootstrap_results_r_squared = 
+  boot_straps %>% 
+  mutate(
+    models = map(strap_sample, ~lm(tmax ~ tmin, data = .x) ),
+    results = map(models, broom::glance)) %>% 
+  select(-strap_sample, -models) %>% 
+  unnest(results) 
+
+bootstrap_results_r_squared%>%
+  ggplot(aes(x = adj.r.squared)) + geom_density()
+```
+
+```{r}
+bootstrap_results_log_b1_b2 = 
+  boot_straps %>% 
+  mutate(
+    models = map(strap_sample, ~lm(tmax ~ tmin, data = .x) ),
+    results = map(models, broom::tidy)) %>% 
+  select(-strap_sample, -models) %>% 
+  unnest(results) %>%
+  select(term, estimate) %>% 
+  pivot_wider(
+    names_from = term,
+    values_from = estimate
+  )%>%
+  janitor::clean_names() %>%
+  unnest(c(intercept, tmin)) %>%
+  mutate(
+    log_b1_b2 = log(intercept * tmin)
+  )
+
+
+bootstrap_results_log_b1_b2%>%
+  ggplot(aes(x = log_b1_b2)) + geom_density()
+```
+
+```{r}
+bootstrap_results_r_squared %>%
+  summarize(
+    ci_lower = quantile(adj.r.squared, 0.025), 
+    ci_upper = quantile(adj.r.squared, 0.975))
+```
+
+```{r}
+bootstrap_results_log_b1_b2%>%
+  summarize(
+    ci_lower = quantile(log_b1_b2, 0.025), 
+    ci_upper = quantile(log_b1_b2, 0.975))
+```
+
 
