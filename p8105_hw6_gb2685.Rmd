@@ -13,6 +13,79 @@ library(modelr)
 library(mgcv)
 ```
 
+### Problem 1
+
+```{r}
+homicide_df = 
+  read_csv("data/homicide-data.csv", na = c("", "NA", "Unknown")) %>% 
+  mutate(
+    city_state = str_c(city, state, sep = ", "),
+    victim_age = as.numeric(victim_age),
+    resolution = case_when(
+      disposition == "Closed without arrest" ~ 0,
+      disposition == "Open/No arrest"        ~ 0,
+      disposition == "Closed by arrest"      ~ 1)
+  ) %>% 
+  filter(
+    victim_race %in% c("White", "Black"),
+    city_state != "Tulsa, AL") %>% 
+  select(city_state, resolution, victim_age, victim_race, victim_sex)
+```
+
+
+Start with one city.
+
+```{r}
+baltimore_df =
+  homicide_df %>% 
+  filter(city_state == "Baltimore, MD")
+glm(resolution ~ victim_age + victim_race + victim_sex, 
+    data = baltimore_df,
+    family = binomial()) %>% 
+  broom::tidy() %>% 
+  mutate(
+    OR = exp(estimate),
+    CI_lower = exp(estimate - 1.96 * std.error),
+    CI_upper = exp(estimate + 1.96 * std.error)
+  ) %>% 
+  select(term, OR, starts_with("CI")) %>% 
+  knitr::kable(digits = 3)
+```
+
+
+Try this across cities.
+
+```{r}
+models_results_df = 
+  homicide_df %>% 
+  nest(data = -city_state) %>% 
+  mutate(
+    models = 
+      map(.x = data, ~glm(resolution ~ victim_age + victim_race + victim_sex, data = .x, family = binomial())),
+    results = map(models, broom::tidy)
+  ) %>% 
+  select(city_state, results) %>% 
+  unnest(results) %>% 
+  mutate(
+    OR = exp(estimate),
+    CI_lower = exp(estimate - 1.96 * std.error),
+    CI_upper = exp(estimate + 1.96 * std.error)
+  ) %>% 
+  select(city_state, term, OR, starts_with("CI")) 
+```
+
+```{r}
+models_results_df %>% 
+  filter(term == "victim_sexMale") %>% 
+  mutate(city_state = fct_reorder(city_state, OR)) %>% 
+  ggplot(aes(x = city_state, y = OR)) + 
+  geom_point() + 
+  geom_errorbar(aes(ymin = CI_lower, ymax = CI_upper)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+
+
 ## Problem 2
 
 **Importing the dataset**
@@ -29,8 +102,10 @@ birthweight_data %>%
 birthweight_df = 
   birthweight_data %>%
   mutate(
-    babysex = as.factor(babysex)
-    
+    babysex = as.factor(babysex),
+    frace = as.factor(frace),
+    malform = as.factor(malform), 
+    mrace = as.factor(mrace)
   )
 
 ```
@@ -75,6 +150,19 @@ lin_model %>%
   knitr::kable(digits = 3)
 ```
 
+Since the p values for the interaction terms are not significant, I took out the interaction terms from the model. Therefore my model now is: 
+
+```{r}
+lin_model = lm(bwt ~ wtgain + gaweeks + babysex, data = birthweight_df)
+
+lin_model %>%
+  broom::tidy() %>% 
+  select(term, estimate, p.value) %>% 
+  mutate(term = str_replace(term, "babysex2", "baby's sex: female")) %>% 
+  knitr::kable(digits = 3)
+
+```
+
 ```{r}
 birthweight_df %>% 
   modelr::add_residuals(lin_model) %>% 
@@ -83,6 +171,8 @@ birthweight_df %>%
 ```
 
 Most of the values were centered around the centre except for a few values that strayed far from zero. 
+
+
 
 **Buiding the other two models:**
 
@@ -113,7 +203,7 @@ Fit the three models
 
 ```{r}
 
-lin_model = lm(bwt ~ wtgain*gaweeks*babysex, data = birthweight_df)
+lin_model = lm(bwt ~ wtgain + gaweeks + babysex, data = birthweight_df)
 lin_model2 = lm(bwt ~ blength + gaweeks, data = birthweight_df)
 lin_model3 = lm(bwt ~ bhead*blength*babysex, data = birthweight_df)
 
@@ -198,10 +288,17 @@ bootstrap_results_r_squared =
     models = map(strap_sample, ~lm(tmax ~ tmin, data = .x) ),
     results = map(models, broom::glance)) %>% 
   select(-strap_sample, -models) %>% 
-  unnest(results) 
+  unnest(results)%>%
+  janitor::clean_names() 
 
 bootstrap_results_r_squared%>%
-  ggplot(aes(x = adj.r.squared)) + geom_density()
+  ggplot(aes(x = r_squared)) +
+  geom_density() +
+  labs(
+    title = "Distribution of R-squared values",
+    x = "R-squared",
+    y = "Density"
+  )
 ```
 
 ```{r}
@@ -225,15 +322,25 @@ bootstrap_results_log_b1_b2 =
 
 
 bootstrap_results_log_b1_b2%>%
-  ggplot(aes(x = log_b1_b2)) + geom_density()
+  ggplot(aes(x = log_b1_b2)) + 
+  geom_density() + 
+  labs(
+    title = "Distribution of Log (b1*b2)",
+    x = "Log (b1*b2)",
+    y = "Density"
+  )
 ```
 
 ```{r}
 bootstrap_results_r_squared %>%
   summarize(
-    ci_lower = quantile(adj.r.squared, 0.025), 
-    ci_upper = quantile(adj.r.squared, 0.975))
+    ci_lower = quantile(r_squared, 0.025), 
+    ci_upper = quantile(r_squared, 0.975))
 ```
+
+The distribution appears to be normally distributed.
+
+The confidence interval: (0.894, 0.927)
 
 ```{r}
 bootstrap_results_log_b1_b2%>%
@@ -242,4 +349,5 @@ bootstrap_results_log_b1_b2%>%
     ci_upper = quantile(log_b1_b2, 0.975))
 ```
 
-
+The distribution appears to be normal. 
+Th confidence interval: (1.97, 2.06)
