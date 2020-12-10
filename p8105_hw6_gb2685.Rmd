@@ -32,8 +32,6 @@ birthweight_df =
     babysex = as.factor(babysex) 
   )
 
-
-
 ```
 
 
@@ -42,15 +40,32 @@ birthweight_df =
 Based on hypothesis found in literature, I have selected the following variables as predictors: 
 Mother's weight gain during pregnancy (pounds) (wtgain)
 Gestational age in weeks (gaweeks)
-Smoking status - Average number of cigarettes smoked per day during pregnancy (smoken)
 Baby’s sex (babysex)
 
 This model was decided based on literature evidence that suggested an association between these predictors and the baby's birthweight. 
 
+However, before building the regression model, we assume linearity and hence it is necessary to make a scatterplot to see if the outcome and predictor are linearly related. 
+
+**Making a scatterplot** 
+
+```{r}
+ggplot(birthweight_df, aes(x = wtgain, y = bwt, color = babysex)) + 
+  geom_point() +
+  geom_smooth(se = FALSE)
+
+
+ggplot(birthweight_df, aes(x = gaweeks, y = bwt, color = babysex)) + 
+  geom_point() +
+  geom_smooth(se = FALSE)
+
+```
+
+It appears that there could be a linear relationship among the predictors Mother's weight and Gestational age when stratified by Baby's sex. Therefore I also decided to include the interaction term. 
+
 **Building the proposed model:** 
 
 ```{r}
-lin_model = lm(bwt ~ wtgain + gaweeks + smoken + babysex, data = birthweight_df)
+lin_model = lm(bwt ~ wtgain*gaweeks*babysex, data = birthweight_df)
 
 lin_model %>%
   broom::tidy() %>% 
@@ -82,7 +97,7 @@ lin_model2 %>%
 Model 3: 
 
 ```{r}
-lin_model3 = lm(bwt ~ bhead + blength + babysex, data = birthweight_df)
+lin_model3 = lm(bwt ~ bhead*blength*babysex, data = birthweight_df)
 
 lin_model3 %>%
   broom::tidy() %>% 
@@ -95,13 +110,13 @@ Fit the three models
 
 ```{r}
 
-lin_model = lm(bwt ~ wtgain + gaweeks + smoken + babysex, data = birthweight_df)
+lin_model = lm(bwt ~ wtgain*gaweeks*babysex, data = birthweight_df)
 lin_model2 = lm(bwt ~ blength + gaweeks, data = birthweight_df)
-lin_model3 = lm(bwt ~ bhead + blength + babysex + bhead*blength + blength*babysex + bhead*babysex +  bhead*blength*babysex, data = birthweight_df)
+lin_model3 = lm(bwt ~ bhead*blength*babysex, data = birthweight_df)
 
 ```
 
-Cross validation
+**Cross validation**
 
 ```{r}
 cv_df = 
@@ -138,5 +153,22 @@ cv_df %>%
     names_prefix = "rmse_") %>% 
   mutate(model = fct_inorder(model)) %>% 
   ggplot(aes(x = model, y = rmse)) + geom_violin()
+```
+
+
+## Problem 3
+
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
 ```
 
